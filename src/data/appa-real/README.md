@@ -15,6 +15,6 @@ bash prepare_dataset.sh
 
 
 ## Ignored List
-The fiel named [ignored list](ignore_list.txt),created thanks to [https://github.com/yu4u/age-gender-estimation/tree/master/appa-real](this great works), is used to exclude the inappropriate images (only for training set).
+The file named [ignored list](ignore_list.txt),from [this great works](https://github.com/yu4u/age-gender-estimation/tree/master/appa-real), is used to exclude the inappropriate images (only for training set).
 
 
