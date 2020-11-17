@@ -7,10 +7,10 @@ Use [APPA-REAL Dataset](http://chalearnlap.cvc.uab.es/dataset/26/description/) f
 ## Get dataset
 
 1. Move to `src/data/appa-real/` directory.
-2. Download and extract the dataset: 
+2. Run the command below to prepare the dataset: 
 
 ```bash
-bash prepare_dataset.sh
+bash make_dataset.sh
 ```
 
 
