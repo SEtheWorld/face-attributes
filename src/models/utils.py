@@ -57,8 +57,6 @@ class FaceMetrics:
     
 
 
-
-
 class Pipeline:
     def __init__(self, model, train_dl, val_dl, params, device):
         self.device = device

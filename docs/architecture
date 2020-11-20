@@ -1,0 +1,24 @@
+# Principles
+	+ ASAP
+
+# Characteristics
+	+ Reproducibility
+	+ Reuseablity
+	+ Tracability
+	
+# Structure
+What does the researcher want ?
+Reserachers conduct control experiments to create useful model.
+Model -> LearningProcedure(Data, ModelArchitecture)
+
+# Conditions of experiment
+	+ Data -> Dataloader ->  Dataset + Batching + Transform
+	+ ModelArchitecture 
+	+ LearningProcedure -> Evaluator + Update + Log + ModelArchitecture + Data
+		+ Evaluator ->  LossFunction + Metrics 
+		+ Update -> Optimizer, LearningRateScheduler
+		+ Log -> Proceduredumb 
+
+# How researchers set up a control experiment ?
++ Change any experiment conditions optionally
++ Run experiment 
