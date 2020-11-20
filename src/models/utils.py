@@ -10,7 +10,7 @@ from torch import optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import copy
 
-class Face_dataset(Dataset):
+class FaceDataset(Dataset):
     def __init__(self, path2data, transform, transform_params):
         self.df = pd.read_csv(path2data)  
         self.transform = transform

@@ -1,21 +1,34 @@
-class experiment:
+import torch
+import PIL
+import numpy as np
+from torch.utils.data import Dataset
+import pandas as pd
+from PIL import Image
+from shapely.geometry import Polygon
+from math import pi
+import torchvision
+from torch import optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+import copy
+
+class Experiment:
     def __init__(self, train_dl, val_dl, model, learning_procedure, device, sanity_check):
-        self.data_loader = data_loader
         self.model = model
         self.learning_procedure = learning_procedure
-        self.train_DL = train_dl
+        self.train_dl = train_dl
         self.val_dl = val_dl
         self.device = device
         self.sanity_check = sanity_check
 
     def run(self):
-        pipeline = Pipeline(self.model, self.train_dl, self.val_dl, self.learning_procedure, self.device, sanity_check)
+        pipeline = Pipeline(self.model, self.train_dl, self.val_dl, self.learning_procedure, self.device, self.sanity_check)
         model, performance = pipeline.train_val()
-        
+        return model, performance
+
 class Pipeline:
     def __init__(self, model, train_dl, val_dl, learning_procedure, device, sanity_check):
         self.model = model
-        self.train_val = train_val
+        self.train_dl = train_dl
         self.val_dl = val_dl
         self.learning_procedure = learning_procedure
         self.device = device
@@ -28,11 +41,11 @@ class Pipeline:
         iteration = self.learning_procedure.iteration
         self.opt = iteration.opt
         self.lr_scheduler = iteration.lr_scheduler
-        self.get_lr = iteration.get_lr()
+        self.get_lr = iteration.get_lr
 
-        performance = self.learning_procedure.performance
-        self.loss_function = performance.loss_function
-        self.metrics_function = performance,metrics_function
+        self.performance = self.learning_procedure.performance
+        self.loss_function = self.performance.loss_function
+        self.metrics_function = self.performance.metrics_function
         
 
     def _process_epoch(self, training, epoch_number):
@@ -49,14 +62,14 @@ class Pipeline:
             predictions = self.model(xb.to(self.device))
 
             # get loss per batch
-            loss = self.loss_function(predictions, yb, training, epoch_number)
+            loss = self.loss_function(predictions, yb)
             # update parameters
             if training:
                 self.opt.zero_grad()
                 loss.backward()
                 self.opt.step()
             else:
-                metrcis = self.metrics_function(predictions, yb, training, epoch_number)
+                metrcis = self.metrics_function(predictions, yb)
             if self.sanity_check:
                 break
 
@@ -70,30 +83,31 @@ class Pipeline:
     
         for epoch in range(self.num_epochs):
             # get current learning rate
-            current_lr = self.get_lr(opt)
-            print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs - 1, current_lr))   
+            current_lr = self.get_lr()
+            print('Epoch {}/{}, current lr={}'.format(epoch, self.num_epochs - 1, current_lr))   
 
             # train the model
             self.model.train()
             self._process_epoch(training = True, epoch_number=epoch)
-        
+            self.performance.log(training = True)
+
             # evaluate the model
             self.model.eval()
             with torch.no_grad():
                 self._process_epoch(training = False, epoch_number = epoch)
-             
+                self.performance.log(training = False)
             # store best model
             if self.performance.avg_loss < best_loss:
                 best_loss = self.performance.avg_loss
-                best_model_wts = copy.deepcopy(model.state_dict())
+                best_model_wts = copy.deepcopy(self.model.state_dict())
             
                 # store weights into a local file
-                torch.save(model.state_dict(), self.path2weights)
+                torch.save(self.model.state_dict(), self.path2weights)
                 print("Copied best model weights!")
             
             # learning rate schedule
             self.lr_scheduler.step(self.performance.avg_loss)
-            if current_lr != self._get_lr(opt):
+            if current_lr != self.get_lr():
                 print("Loading best model weights!")
                 self.model.load_state_dict(best_model_wts) 
             
