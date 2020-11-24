@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import PIL
 import numpy as np
 from torch.utils.data import Dataset
@@ -10,69 +11,63 @@ import torchvision
 from torch import optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import copy
+import time
 
-class Experiment:
-    def __init__(self, train_dl, val_dl, model, learning_procedure, device, sanity_check):
-        self.model = model
-        self.learning_procedure = learning_procedure
-        self.train_dl = train_dl
-        self.val_dl = val_dl
-        self.device = device
-        self.sanity_check = sanity_check
+class AverageMeter:
+    def __init__(self):
+        self.sum = 0.0
+        self.count = 0.0
 
-    def run(self):
-        pipeline = Pipeline(self.model, self.train_dl, self.val_dl, self.learning_procedure, self.device, self.sanity_check)
-        model, performance = pipeline.train_val()
-        return model, performance
+    def update(self, val, n):
+        self.sum += val
+        self.count += n
+
+    def get_avg(self):
+        return self.sum / self.count
 
 class Pipeline:
-    def __init__(self, model, train_dl, val_dl, learning_procedure, device, sanity_check):
+    def __init__(self, model, train_dl, val_dl, performance, params):
         self.model = model
         self.train_dl = train_dl
         self.val_dl = val_dl
-        self.learning_procedure = learning_procedure
-        self.device = device
-        self.sanity_check = sanity_check
+        self.performance = performance
+        self.params = params       
 
-        params = self.learning_procedure.params       
-        self.num_epochs = params.num_epochs
-        self.path2weights = params.path2weights
+    def get_lr(self): 
+        for param_group in self.params.opt.param_groups:
+            return param_group['lr']
 
-        iteration = self.learning_procedure.iteration
-        self.opt = iteration.opt
-        self.lr_scheduler = iteration.lr_scheduler
-        self.get_lr = iteration.get_lr
-
-        self.performance = self.learning_procedure.performance
-        self.loss_function = self.performance.loss_function
-        self.metrics_function = self.performance.metrics_function
-        
-
-    def _process_epoch(self, training, epoch_number):
-
+    def _process_epoch(self, training):
+        loss_monitor = AverageMeter()
+        metrics_monitor = AverageMeter()
         if training:
             dataset_dl = self.train_dl
         else:
             dataset_dl = self.val_dl
 
         for xb, yb in dataset_dl:
-            yb=yb.to(self.device)
+            yb=yb.to(self.params.device)
 
             # get model output
-            predictions = self.model(xb.to(self.device))
+            predictions = self.model(xb.to(self.params.device))
 
             # get loss per batch
-            loss = self.loss_function(predictions, yb)
+            loss = self.performance.loss_function(predictions, yb)
+            loss_monitor.update(loss, len(yb))
+
+            # get metrcis per batch
+            metrics = self.performance.metrics_function(predictions, yb)
+            metrics_monitor.update(metrics, len(yb))
+
             # update parameters
             if training:
-                self.opt.zero_grad()
+                self.params.opt.zero_grad()
                 loss.backward()
-                self.opt.step()
-            else:
-                metrcis = self.metrics_function(predictions, yb)
-            if self.sanity_check:
-                break
+                self.params.opt.step()
 
+            if self.params.sanity_check:
+                break
+        return loss_monitor, metrics_monitor
 
     def train_val(self):
         # a deep copy of weights for the best performing model
@@ -80,70 +75,83 @@ class Pipeline:
     
         # initialize best loss to a large value
         best_loss=float('inf')    
-    
-        for epoch in range(self.num_epochs):
+        num_epochs = self.params.num_epochs
+        for epoch in range(num_epochs):
             # get current learning rate
             current_lr = self.get_lr()
-            print('Epoch {}/{}, current lr={}'.format(epoch, self.num_epochs - 1, current_lr))   
-
+            print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs - 1, current_lr))   
             # train the model
             self.model.train()
-            self._process_epoch(training = True, epoch_number=epoch)
-            self.performance.log(training = True)
-
+            train_loss_monitor, train_metrics_monitor = self._process_epoch(training = True)       
+            self.performance.log(train_loss_monitor, train_metrics_monitor, training = True, epoch_number=epoch)
+            
             # evaluate the model
             self.model.eval()
             with torch.no_grad():
-                self._process_epoch(training = False, epoch_number = epoch)
-                self.performance.log(training = False)
+                val_loss_monitor, val_metrics_monitor = self._process_epoch(training = False,)
+                self.performance.log(val_loss_monitor, val_metrics_monitor, training = False, epoch_number= epoch)
+            
+            val_loss = val_loss_monitor.get_avg().item()
+            train_loss = train_loss_monitor.get_avg().item()
             # store best model
-            if self.performance.avg_loss < best_loss:
-                best_loss = self.performance.avg_loss
+            if  val_loss< best_loss:
+                best_loss = val_loss
                 best_model_wts = copy.deepcopy(self.model.state_dict())
             
                 # store weights into a local file
-                torch.save(self.model.state_dict(), self.path2weights)
+                torch.save(self.model.state_dict(), self.params.path2weights)
                 print("Copied best model weights!")
             
             # learning rate schedule
-            self.lr_scheduler.step(self.performance.avg_loss)
+            self.params.lr_scheduler.step(val_loss)
             if current_lr != self.get_lr():
                 print("Loading best model weights!")
                 self.model.load_state_dict(best_model_wts) 
-            
+        
+            print("train loss: %.6f" %(train_loss))
+            print("val loss: %.6f" %(val_loss))
+            print("-"*10) 
 
         # load best model weights
         self.model.load_state_dict(best_model_wts)
-        return self.model, self.learning_procedure.performance
+        return self.model, self.performance
     
-class LearningProcedure:
-    def __init__(self, performance, iteration, params):
-        self.iteration = iteration
-        self.performance = performance
-        self.params = params
-
 class Prams:
-    def __init__(self, num_epochs, path2weights):
+    def __init__(self, num_epochs, path2weights, device, optimizer, lr_scheduler, sanity_check):
         self.num_epochs = num_epochs
         self.path2weights = path2weights
-
-class Iteration:
-    def __init__(self, optimizer, lr_scheduler):
+        self.device = device
         self.opt = optimizer
         self.lr_scheduler = lr_scheduler
-
-    def get_lr(self): 
-        for param_group in self.opt.param_groups:
-            return param_group['lr']
+        self.sanity_check = sanity_check
 
 class Performance:
-    def __init__():
-        pass
-    
-    def loss_function(self, predictions, targets, training, epoch_number):
-        pass
+    def __init__(self):
+        # history of loss values in each epoch
+        self.loss_history={
+            "train": [],
+            "val": [],
+        }
 
-    def metrics_function(self, predictions, targets, training, epoch_number):
-        pass
-    
+        # histroy of metric values in each epoch
+        self.metrics_history={
+            "train": [],
+            "val": [],
+        }
+        self.loss_func = nn.MSELoss(reduction="sum")
+    def loss_function(self, predictions, targets):
+        loss = self.loss_func(predictions, targets[:, 0].unsqueeze(1))      
+        return loss
 
+    def metrics_function(self, predictions, targets):
+        mae = torch.abs(predictions - targets[:, 0].unsqueeze(1)).sum()      
+        return mae
+        
+    def log(self, loss_monitor, metrics_monitor, training, epoch_number):
+        if training:
+            train_val = "train"
+        else:
+            train_val = "val"
+
+        self.loss_history[train_val].append(loss_monitor.get_avg())
+        self.metrics_history[train_val].append(metrics_monitor.get_avg())
