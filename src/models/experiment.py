@@ -115,6 +115,29 @@ class Pipeline:
         # load best model weights
         self.model.load_state_dict(best_model_wts)
         return self.model, self.performance
+
+    def test(self, test_dl):          
+        # evaluate the model
+        loss_monitor = AverageMeter()
+        metrics_monitor = AverageMeter()
+        self.model.eval()
+
+        with torch.no_grad():
+            for xb, yb in test_dl:
+                yb=yb.to(self.params.device)
+
+                # get model output
+                predictions = self.model(xb.to(self.params.device))
+
+                # get loss per batch
+                loss = self.performance.loss_function(predictions, yb)
+                loss_monitor.update(loss, len(yb))
+
+                # get metrcis per batch
+                metrics = self.performance.metrics_function(predictions, yb)
+                metrics_monitor.update(metrics, len(yb))
+
+        return loss_monitor.get_avg(), metrics_monitor.get_avg()           
     
 class Prams:
     def __init__(self, num_epochs, path2weights, device, optimizer, lr_scheduler, sanity_check):
