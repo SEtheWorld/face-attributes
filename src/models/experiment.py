@@ -178,3 +178,6 @@ class Performance:
 
         self.loss_history[train_val].append(loss_monitor.get_avg())
         self.metrics_history[train_val].append(metrics_monitor.get_avg())
+
+
+
