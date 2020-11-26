@@ -12,6 +12,7 @@ from torch import optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import copy
 import time
+from tqdm.notebook import tqdm
 
 class AverageMeter:
     def __init__(self):
@@ -31,7 +32,8 @@ class Pipeline:
         self.train_dl = train_dl
         self.val_dl = val_dl
         self.performance = performance
-        self.params = params       
+        self.params = params      
+        self.epoch = 0 
 
     def get_lr(self): 
         for param_group in self.params.opt.param_groups:
@@ -45,7 +47,7 @@ class Pipeline:
         else:
             dataset_dl = self.val_dl
 
-        for xb, yb in dataset_dl:
+        for xb, yb in tqdm(dataset_dl, total=len(dataset_dl), desc='Progress'):
             yb=yb.to(self.params.device)
 
             # get model output
@@ -74,7 +76,7 @@ class Pipeline:
         best_model_wts = copy.deepcopy(self.model.state_dict())
     
         # initialize best loss to a large value
-        best_loss=float('inf')    
+        self.best_loss=float('inf')    
         num_epochs = self.params.num_epochs
         for epoch in range(num_epochs):
             # get current learning rate
@@ -94,12 +96,13 @@ class Pipeline:
             val_loss = val_loss_monitor.get_avg().item()
             train_loss = train_loss_monitor.get_avg().item()
             # store best model
-            if  val_loss< best_loss:
-                best_loss = val_loss
+            if  val_loss < self.best_loss:
+                self.best_loss = val_loss
                 best_model_wts = copy.deepcopy(self.model.state_dict())
             
                 # store weights into a local file
-                torch.save(self.model.state_dict(), self.params.path2weights)
+                # torch.save(self.model.state_dict(), self.params.path2weights)
+                self.save(self.params.path2weights)
                 print("Copied best model weights!")
             
             # learning rate schedule
@@ -112,9 +115,29 @@ class Pipeline:
             print("val loss: %.6f" %(val_loss))
             print("-"*10) 
 
+        self.epoch += 1
+
         # load best model weights
         self.model.load_state_dict(best_model_wts)
         return self.model, self.performance
+
+    def save(self, path):
+            self.model.eval()
+            torch.save({
+                'model_state_dict': self.model.state_dict(),
+                'optimizer_state_dict': self.params.opt.state_dict(),
+                'scheduler_state_dict': self.params.lr_scheduler.state_dict(),
+                'best_loss': self.best_loss,
+                'epoch': self.epoch,
+            }, path)
+
+    def load(self, path):
+            checkpoint = torch.load(path)
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+            self.params.opt.load_state_dict(checkpoint['optimizer_state_dict'])
+            self.params.lr_scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            self.best_loss = checkpoint['best_loss']
+            self.epoch = checkpoint['epoch'] + 1    
 
     def test(self, test_dl):          
         # evaluate the model
@@ -123,7 +146,7 @@ class Pipeline:
         self.model.eval()
 
         with torch.no_grad():
-            for xb, yb in test_dl:
+            for xb, yb in tqdm(test_dl, total = len(test_dl), desc='Progress'):
                 yb=yb.to(self.params.device)
 
                 # get model output
@@ -161,6 +184,7 @@ class Performance:
             "train": [],
             "val": [],
         }
+        
         self.loss_func = nn.MSELoss(reduction="sum")
     def loss_function(self, predictions, targets):
         loss = self.loss_func(predictions, targets[:, 0].unsqueeze(1))      
