@@ -12,6 +12,7 @@ from torch import optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import copy
 import time
+from tqdm.notebook import tqdm
 
 class AverageMeter:
     def __init__(self):
@@ -45,7 +46,7 @@ class Pipeline:
         else:
             dataset_dl = self.val_dl
 
-        for xb, yb in dataset_dl:
+        for xb, yb in tqdm(dataset_dl):
             yb=yb.to(self.params.device)
 
             # get model output
@@ -82,13 +83,18 @@ class Pipeline:
             print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs - 1, current_lr))   
             # train the model
             self.model.train()
+
+            t = time.time()
             train_loss_monitor, train_metrics_monitor = self._process_epoch(training = True)       
+            train_time = (time.time() - t) / 60
             self.performance.log(train_loss_monitor, train_metrics_monitor, training = True, epoch_number=epoch)
             
             # evaluate the model
             self.model.eval()
             with torch.no_grad():
+                t = time.time()
                 val_loss_monitor, val_metrics_monitor = self._process_epoch(training = False,)
+                val_time = (time.time() - t) / 60
                 self.performance.log(val_loss_monitor, val_metrics_monitor, training = False, epoch_number= epoch)
             
             val_loss = val_loss_monitor.get_avg().item()
@@ -108,8 +114,8 @@ class Pipeline:
                 print("Loading best model weights!")
                 self.model.load_state_dict(best_model_wts) 
         
-            print("train loss: %.6f" %(train_loss))
-            print("val loss: %.6f" %(val_loss))
+            print("train loss: %.6f time : %.5f" %(train_loss, train_time))
+            print("val loss: %.6f time: %.5f" %(val_loss, val_time))
             print("-"*10) 
 
         # load best model weights
@@ -123,7 +129,7 @@ class Pipeline:
         self.model.eval()
 
         with torch.no_grad():
-            for xb, yb in test_dl:
+            for xb, yb in tqmd(test_dl):
                 yb=yb.to(self.params.device)
 
                 # get model output
