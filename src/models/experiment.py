@@ -13,6 +13,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import copy
 import time
 from tqdm.notebook import tqdm
+import wandb
 
 class AverageMeter:
     def __init__(self):
@@ -61,14 +62,17 @@ class Pipeline:
             metrics = self.performance.metrics_function(predictions, yb)
             metrics_monitor.update(metrics, len(yb))
 
+            self.params['wandb'].log({'Train Loss': loss_monitor.get_avg(), 'Train Accuracy': metrics_monitor.get_avg()[0], 'Train MAE' : metrics_monitor.get_avg()[1]})
+
             # update parameters
             if training:
                 self.params.opt.zero_grad()
                 loss.backward()
-                self.params.opt.step()
+                self.params.opt.step()  
 
             if self.params.sanity_check:
                 break
+
         return loss_monitor, metrics_monitor
 
     def train_val(self):
@@ -84,13 +88,17 @@ class Pipeline:
             print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs - 1, current_lr))   
             # train the model
             self.model.train()
-            train_loss_monitor, train_metrics_monitor = self._process_epoch(training = True)       
+            t = time.time()
+            train_loss_monitor, train_metrics_monitor = self._process_epoch(training = True)      
+            train_time = (time.time() - t) / 60  
             self.performance.log(train_loss_monitor, train_metrics_monitor, training = True, epoch_number=epoch)
-            
+
             # evaluate the model
             self.model.eval()
             with torch.no_grad():
+                t = time.time()
                 val_loss_monitor, val_metrics_monitor = self._process_epoch(training = False,)
+                val_time = (time.time() - t) / 60
                 self.performance.log(val_loss_monitor, val_metrics_monitor, training = False, epoch_number= epoch)
             
             val_loss = val_loss_monitor.get_avg().item()
@@ -111,8 +119,8 @@ class Pipeline:
                 print("Loading best model weights!")
                 self.model.load_state_dict(best_model_wts) 
         
-            print("train loss: %.6f" %(train_loss))
-            print("val loss: %.6f" %(val_loss))
+            print("train loss: %.6f, time: %.5f" %(train_loss, train_time))
+            print("val loss: %.6f, time: %.5f" %(val_loss, val_time))
             print("-"*10) 
 
         self.epoch += 1
@@ -202,6 +210,5 @@ class Performance:
 
         self.loss_history[train_val].append(loss_monitor.get_avg())
         self.metrics_history[train_val].append(metrics_monitor.get_avg())
-
 
 
