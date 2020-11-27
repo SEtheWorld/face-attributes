@@ -69,7 +69,7 @@ class Pipeline:
                 break
         return loss_monitor, metrics_monitor
 
-    def train_val(self):
+    def train_val(self):        
         # a deep copy of weights for the best performing model
         best_model_wts = copy.deepcopy(self.model.state_dict())
     
@@ -77,6 +77,7 @@ class Pipeline:
         best_loss=float('inf')    
         num_epochs = self.params.num_epochs
         for epoch in range(num_epochs):
+            since = time.time()
             # get current learning rate
             current_lr = self.get_lr()
             print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs - 1, current_lr))   
@@ -109,9 +110,11 @@ class Pipeline:
                 self.model.load_state_dict(best_model_wts) 
         
             print("train loss: %.6f" %(train_loss))
-            print("val loss: %.6f" %(val_loss))
+            print("val loss: %.6f" %(val_loss))        
+            time_elapsed = time.time() - since
+            print('Training epoch complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
             print("-"*10) 
-
+        
         # load best model weights
         self.model.load_state_dict(best_model_wts)
         return self.model, self.performance
