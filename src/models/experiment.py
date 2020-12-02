@@ -146,7 +146,7 @@ class Pipeline:
             self.epoch = checkpoint['epoch'] + 1    
 
     def test(self, test_dl):          
-        # evaluate the model
+        # evaluate the model    
         loss_monitor = AverageMeter()
         metrics_monitor = AverageMeter()
         self.model.eval()
