@@ -48,7 +48,7 @@ class Pipeline:
         else:
             dataset_dl = self.val_dl
 
-        for xb, yb in tqdm(dataset_dl, total=len(dataset_dl), desc='Progress'):
+        for xb, yb in dataset_dl:
             yb=yb.to(self.params.device)
 
             # get model output
@@ -61,8 +61,6 @@ class Pipeline:
             # get metrcis per batch
             metrics = self.performance.metrics_function(predictions, yb)
             metrics_monitor.update(metrics, len(yb))
-
-            self.params['wandb'].log({'Train Loss': loss_monitor.get_avg(), 'Train Accuracy': metrics_monitor.get_avg()[0], 'Train MAE' : metrics_monitor.get_avg()[1]})
 
             # update parameters
             if training:
