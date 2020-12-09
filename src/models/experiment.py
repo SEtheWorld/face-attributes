@@ -24,9 +24,10 @@ class AverageMeter:
         self.sum += val
         self.count += n
 
-    def get_avg(self):
+    def get_avg(self):    
         return self.sum / self.count
-
+        
+    
 class Pipeline:
     def __init__(self, model, train_dl, val_dl, performance, params):
         self.model = model
@@ -159,7 +160,7 @@ class Pipeline:
                 predictions = self.model(xb.to(self.params.device))
 
                 # get loss per batch
-                loss = self.performance.loss_function(predictions, yb)
+                loss, _, _ = self.performance.loss_function(predictions, yb)
                 loss_monitor.update(loss, len(yb))
 
                 # get metrcis per batch
@@ -176,7 +177,7 @@ class Prams:
         self.opt = optimizer
         self.lr_scheduler = lr_scheduler
         self.sanity_check = sanity_check
-
+    
 class Performance:
     def __init__(self):
         # history of loss values in each epoch
@@ -192,6 +193,7 @@ class Performance:
         }
         
         self.loss_func = nn.MSELoss(reduction="sum")
+
     def loss_function(self, predictions, targets):
         loss = self.loss_func(predictions, targets[:, 0].unsqueeze(1))      
         return loss
@@ -205,8 +207,6 @@ class Performance:
             train_val = "train"
         else:
             train_val = "val"
-
+        
         self.loss_history[train_val].append(loss_monitor.get_avg())
         self.metrics_history[train_val].append(metrics_monitor.get_avg())
-
-
