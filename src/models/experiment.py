@@ -36,6 +36,8 @@ class Pipeline:
         self.performance = performance
         self.params = params      
         self.epoch = 0 
+        # initialize best loss to a large value
+        self.best_loss=float('inf')    
 
     def get_lr(self): 
         for param_group in self.params.opt.param_groups:
@@ -77,11 +79,9 @@ class Pipeline:
     def train_val(self):
         # a deep copy of weights for the best performing model
         best_model_wts = copy.deepcopy(self.model.state_dict())
-    
-        # initialize best loss to a large value
-        self.best_loss=float('inf')    
+   
         num_epochs = self.params.num_epochs
-        for epoch in range(num_epochs):
+        for epoch in range(6, num_epochs):
             # get current learning rate
             current_lr = self.get_lr()
             print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs - 1, current_lr))   
