@@ -81,7 +81,7 @@ class Pipeline:
         best_model_wts = copy.deepcopy(self.model.state_dict())
    
         num_epochs = self.params.num_epochs
-        for epoch in range(6, num_epochs):
+        for epoch in range(self.epoch, num_epochs):
             # get current learning rate
             current_lr = self.get_lr()
             print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs - 1, current_lr))   
