@@ -6,6 +6,7 @@ __pycache__/
 *.so
 
 models/
+notebooks/wandb/
 
 # Distribution / packaging
 .Python
