@@ -1,0 +1,26 @@
+{
+    "os": "Linux-5.4.0-53-generic-x86_64-with-glibc2.10",
+    "python": "3.8.2",
+    "heartbeatAt": "2020-12-02T04:09:00.954077",
+    "startedAt": "2020-12-02T04:08:59.899723",
+    "docker": null,
+    "gpu": "GeForce RTX 2080 Ti",
+    "gpu_count": 4,
+    "cpu_count": 20,
+    "cuda": "10.0.130",
+    "args": [
+        "-f",
+        "/home/anhduy/.local/share/jupyter/runtime/kernel-bd365608-28e7-4455-b9fe-cce88e898afb.json"
+    ],
+    "state": "running",
+    "program": "<python with no main file>",
+    "git": {
+        "remote": "https://github.com/SEtheWorld/face-attributes.git",
+        "commit": "cc1bb276c8d82c93c6b55d1a8f2d797591f920fa"
+    },
+    "email": "duy.le.bku_16039@hcmut.edu.vn",
+    "root": "/home/anhduy/face-attributes",
+    "host": "X4-server",
+    "username": "anhduy",
+    "executable": "/home/anhduy/anaconda3/envs/age_gender/bin/python"
+}

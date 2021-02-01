@@ -12,7 +12,6 @@ from torch import optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import copy
 import time
-from tqdm.notebook import tqdm
 
 class AverageMeter:
     def __init__(self):
@@ -46,7 +45,7 @@ class Pipeline:
         else:
             dataset_dl = self.val_dl
 
-        for xb, yb in tqdm(dataset_dl):
+        for xb, yb in dataset_dl:
             yb=yb.to(self.params.device)
 
             # get model output
@@ -70,7 +69,7 @@ class Pipeline:
                 break
         return loss_monitor, metrics_monitor
 
-    def train_val(self):
+    def train_val(self):        
         # a deep copy of weights for the best performing model
         best_model_wts = copy.deepcopy(self.model.state_dict())
     
@@ -78,6 +77,7 @@ class Pipeline:
         best_loss=float('inf')    
         num_epochs = self.params.num_epochs
         for epoch in range(num_epochs):
+            since = time.time()
             # get current learning rate
             current_lr = self.get_lr()
             print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs - 1, current_lr))   
@@ -114,10 +114,12 @@ class Pipeline:
                 print("Loading best model weights!")
                 self.model.load_state_dict(best_model_wts) 
         
-            print("train loss: %.6f time : %.5f" %(train_loss, train_time))
-            print("val loss: %.6f time: %.5f" %(val_loss, val_time))
+            print("train loss: %.6f" %(train_loss))
+            print("val loss: %.6f" %(val_loss))        
+            time_elapsed = time.time() - since
+            print('Training epoch complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
             print("-"*10) 
-
+        
         # load best model weights
         self.model.load_state_dict(best_model_wts)
         return self.model, self.performance
@@ -129,7 +131,7 @@ class Pipeline:
         self.model.eval()
 
         with torch.no_grad():
-            for xb, yb in tqmd(test_dl):
+            for xb, yb in test_dl:
                 yb=yb.to(self.params.device)
 
                 # get model output
