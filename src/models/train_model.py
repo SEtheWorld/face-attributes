@@ -5,7 +5,7 @@ import hydra
 from hydra.utils import to_absolute_path
 import tensorflow as tf
 from tensorflow.keras.callbacks import LearningRateScheduler, ModelCheckpoint
-from factory import get_model, get_optimizer, get_scheduler, get_loss
+from factory import get_model, get_scheduler
 from generator import ImageSequence
 import argparse
 
@@ -36,14 +36,7 @@ def main(cfg):
 
     with strategy.scope():
         model = get_model(cfg)
-        opt = get_optimizer(cfg)
-        loss = get_loss(cfg.loss.age, cfg.loss.gender)
         scheduler = get_scheduler(cfg)
-        model.compile(optimizer=opt,
-                      loss={loss[0], loss[1]},
-                      metrics={"mae", "accuracy"},
-                      loss_weights = {1, 10}
-                      )
 
     checkpoint_dir = Path(to_absolute_path(__file__)).parent.joinpath("checkpoint")
     checkpoint_dir.mkdir(exist_ok=True)
@@ -62,16 +55,16 @@ def main(cfg):
     history = model.fit(train_gen, epochs=cfg.train.epochs, callbacks=callbacks, validation_data=val_gen,
               workers=multiprocessing.cpu_count())
    
-    with strategy.scope():
-        model = get_model(cfg)
-        opt = get_optimizer(cfg)
-        loss = get_loss(cfg.loss.age, cfg.loss.gender)
-        scheduler = get_scheduler(cfg)
-        model.compile(optimizer=opt,
-                      loss={loss[0], loss[1]},
-                      metrics={"mae", "accuracy"},
-                      loss_weights = {1, 10}
-                      )
+    # with strategy.scope():
+    #     model = get_model(cfg)
+    #     opt = get_optimizer(cfg)
+    #     loss = get_loss(cfg.loss.age, cfg.loss.gender)
+    #     scheduler = get_scheduler(cfg)
+    #     model.compile(optimizer=opt,
+    #                   loss={loss[0], loss[1]},
+    #                   metrics={"mae", "accuracy"},
+    #                   loss_weights = {1, 10}
+    #                   )
 
 
 if __name__ == '__main__':

@@ -3,9 +3,10 @@ from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense
 
-
+#Use Cross Entropy for age
 def get_model(cfg):
     name = cfg.model.model_name.lower()
+    
     base_model = getattr(applications, cfg.model.model_name)(
         include_top=False,
         input_shape=(cfg.model.img_size, cfg.model.img_size, 3),
@@ -21,8 +22,14 @@ def get_model(cfg):
     pred_gender = Dense(units=2, activation="softmax", name="pred_gender")(features)
     pred_age = Dense(units=101, activation="softmax", name="pred_age")(features)
     model = Model(inputs=base_model.input, outputs=[pred_gender, pred_age])
+
+    opt = get_optimizer(cfg)
+    loss = get_loss(cfg.loss.age, cfg.loss.gender)
+    model.compile(optimizer=opt, loss={loss[0], loss[1]}, metrics={"mae", "accuracy"}, loss_weights = {1, 10})
+
     return model
 
+#Use MSE loss for age
 def get_model_1(cfg):
 
     base_model = getattr(applications, cfg.model.model_name)(
@@ -35,6 +42,30 @@ def get_model_1(cfg):
     pred_gender = Dense(units=2, activation="softmax", name="pred_gender")(features)
     pred_age = Dense(units=1, activation="linear", name="pred_age")(features)
     model = Model(inputs=base_model.input, outputs=[pred_gender, pred_age])
+
+    opt = get_optimizer(cfg)
+    loss = get_loss(cfg.loss.age, cfg.loss.gender)
+    model.compile(optimizer=opt, loss={loss[0], loss[1]}, metrics={"mae", "accuracy"}, loss_weights = {1, 10})
+
+    return model
+
+#Use CORAL REGRESSION for age
+#Paper https://arxiv.org/abs/1901.07884
+#Keras Port: https://github.com/ck37/coral-ordinal
+def get_model_2(cfg):
+
+    base_model = getattr(applications, cfg.model.model_name)(
+        include_top=False,
+        input_shape=(cfg.model.img_size, cfg.model.img_size, 3),
+        pooling="max"
+    )
+    
+    features = base_model.output
+    pred_gender = Dense(units=2, activation="softmax", name="pred_gender")(features)
+    pred_age = Dense(units=1, activation="linear", name="pred_age")(features)
+    model = Model(inputs=base_model.input, outputs=[pred_gender, pred_age])
+
+
     return model
 
 def get_optimizer(cfg):
